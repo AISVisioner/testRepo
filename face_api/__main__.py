@@ -27,7 +27,7 @@ def main(argv):
                 matches = face_recognition.compare_faces(encodings, encoding)
                 del encodings[0]
                 if False not in matches:
-                    matched = encodings
+                    matched = encodings[0]
             encodings.append(encoding)
             break
         if matched:
