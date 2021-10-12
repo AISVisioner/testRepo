@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="kr">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiosk</title>
+</head>
+
+<body>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+
+    <div id="app">
+
+      <!--first화면...-->
+      <div class="first">
+        <button class="adminiBotton" type="button">관리자</button>
+        <h1>마스크를 내리고 화면 가까이 서주세요.</h1>
+      </div>
+      
+
+      <!--조회중화면...-->
+      <div class="checking">
+        <h1>조회중입니다...</h1>
+      </div>
+
+      <!--얼굴인식 실패화면.-->
+      <div class="notRecog">
+        <h1>얼굴인식에 실패하였습니다.얼굴 전체가 보이도록 서주세요.</h1>
+      </div>
+
+      <!--unregistered person화면...-->
+      <div class="unregistered person">
+        <p>오늘 처음 방문하셨군요. 환영합니다.</p>
+        <button class="signUpBotton" type="button">신기등록</button>
+        <button class="backFistBotton" type="button">재인식(등록된 사람)</button>
+        <p>※2번 이상 재인식해도 인식 못한 경우 
+          010-0000-000에 전화해주세요.</p>
+
+      </div>
+
+
+      <!--신기 등록화면...-->
+        <div class="signUp">
+          <video ref="video" id="video" width="500" height="500" autoplay></video>
+          <p>얼글을 등록하겠습니다. 
+            마스크를 내리고 화면 가까이 서주세요.</p>
+          <div>
+            <button color="info" id="snap" v-on:click="capture()">사진 찍기</button>
+          </div>
+          <canvas ref="canvas" id="canvas" width="500" height="500"></canvas>
+          <ul>
+          <li class="capture" v-for="c in captures" v-bind:key="c.d">
+            <img v-bind:src="c" height="50" />
+          </li>
+          </ul>
+        </div>
+      </div>
+
+      <!--얼글 신기 등록완료화면...-->
+      <div class="comSignUp">
+        <h1>얼글 등록완료했습니다.
+          관리자가 이름을 등록합니다.</h1>
+      </div>
+
+
+      <!--registered person화면...name, number변수필수-->
+      <div class="regiPer">
+        <h1>name님 안녕하세요. 
+          number번째 방문을 환영합니다.</h1>
+          <button class="backFistBotton" type="button">재인식</button>
+        
+      </div>
+
+
+
+      
+
+
+
+      
+
+
+      <script>
+        new Vue({
+          el: '#app',
+          data: {
+            video: {},
+            canvas: {},
+            captures: []
+          },
+          mounted () {
+            this.video = this.$refs.video
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+              navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+                this.video.srcObject = stream
+                this.video.play()
+              })
+            }
+          },
+          methods: {
+            capture () {
+              this.canvas = this.$refs.canvas
+              this.canvas.getContext('2d').drawImage(this.video, 0, 0, 500, 500)
+              this.captures.push(this.canvas.toDataURL('image/png'))
+              console.log(this.captures)
+            }
+          }
+        });
+      </script>
+    
+    </body>
+    </html>
+    
+
+    
+    <style>
+    *{
+      font-family: inherit;
+      font-size:inherit;
+    }
+
+  
+
+    #canvas {
+      display: none;
+    }
+    .capture {
+      /* display: inline; */
+      padding: 5px;
+    }
+    </style>
+    
+</body>
+</html>
