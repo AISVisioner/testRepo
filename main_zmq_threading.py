@@ -8,7 +8,6 @@ import uuid
 import cv2
 import base64
 import face_recognition
-import asyncio
 
 
 def tprint(msg):
@@ -55,7 +54,7 @@ class ServerWorker(threading.Thread):
         while True:
             ident, msg = worker.recv_multipart()
             msg = str(msg, encoding='ascii')
-            shape_str, msg = str(msg).split('__', 1)
+            ts, shape_str, msg = str(msg).split('__', 2)
             shape = tuple(map(int, shape_str.split('_')))
 
             msg = base64.decodebytes(bytes(msg, encoding='ascii'))
@@ -65,7 +64,7 @@ class ServerWorker(threading.Thread):
             boxes = face_recognition.face_locations(image)
             for box in boxes:
                 facevec = face_recognition.face_encodings(image, [box])[0]
-                worker.send_multipart([ident, base64.b64encode(facevec)])
+                worker.send_multipart([ident, bytes(ts + '__', encoding='ascii') + base64.b64encode(facevec)])
                 tprint(f"[{identity}] ...pong")
                 break
         worker.close()
@@ -90,7 +89,9 @@ class ClientTask(threading.Thread):
         cv2.resizeWindow(identity, 800, 800)
         font = cv2.FONT_HERSHEY_SIMPLEX
 
+        using = False
         cap = cv2.VideoCapture(self.url)
+        history = History(size=60)
         fps = FPS()
         __start = datetime.now()
         while True:
@@ -107,9 +108,6 @@ class ClientTask(threading.Thread):
 
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             frame = cv2.resize(frame, dsize=(320, 240))
-            # frame = cv2.resize(frame, dsize=(192, 144))
-
-            # cv2.imshow(identity, frame)
 
             shape_bytes = ''
             for i in frame.shape:
@@ -117,13 +115,30 @@ class ClientTask(threading.Thread):
             shape_bytes += '_'
             shape_bytes = bytes(shape_bytes, encoding='ascii')
 
-            socket.send_string(str(shape_bytes + base64.b64encode(frame), encoding='ascii'))
+            ts = str(time.perf_counter())
+            history.enqueue([ts, None])
+            socket.send_string(ts + '__' + str(shape_bytes + base64.b64encode(frame), encoding='ascii'))
             tprint(f"[{identity}] ping...")
 
-            sockets = dict(poll.poll(250))
+            sockets = dict(poll.poll(200))
             if socket in sockets:
                 msg = socket.recv()
-                tprint(f"[{identity}] received {msg}")
+                msg = str(msg, encoding='ascii')
+                ts, facevec = msg.split('__', 1)
+                facevec = base64.decodebytes(bytes(facevec, encoding='ascii'))
+                facevec = np.frombuffer(facevec, dtype=np.float64)
+                history.find(ts, place=lambda x: x[0])
+                history[history.find(ts, place=lambda x: x[0])][1] = facevec
+
+            current_ts = time.perf_counter()
+            facevecs = [facevec for ts, facevec in reversed(history) if (current_ts > float(ts) > current_ts-2) and facevec is not None]
+            try:
+                if all(face_recognition.compare_faces(facevecs[1:], facevecs[0])):
+                    using = True
+                else:
+                    using = False
+            except:
+                pass
             
             tprint(f"FPS\t{fps}\n")
 
